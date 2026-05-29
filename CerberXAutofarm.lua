@@ -49,7 +49,6 @@ local MiniButton
 local Notice
 local NoticeStroke
 local NoticeBar
-local NoticeGlow
 local HitAuraRow
 local AutoFarmRow
 local HitAuraSwitch
@@ -59,6 +58,7 @@ local AutoFarmKnob
 
 local guiVisible = true
 local guiMinimized = false
+local guiHardHidden = false
 local hitAuraEnabled = false
 local autoFarmEnabled = false
 
@@ -173,6 +173,7 @@ local function savePrefs()
 		autoFarmEnabled = autoFarmEnabled,
 		guiVisible = guiVisible,
 		guiMinimized = guiMinimized,
+		guiHardHidden = guiHardHidden,
 		mainX = MainFrame and MainFrame.Position.X.Offset or nil,
 		mainY = MainFrame and MainFrame.Position.Y.Offset or nil,
 		miniX = MiniButton and MiniButton.Position.X.Offset or nil,
@@ -201,6 +202,9 @@ local function loadPrefs()
 		end
 		if type(decoded.guiMinimized) == "boolean" then
 			guiMinimized = decoded.guiMinimized
+		end
+		if type(decoded.guiHardHidden) == "boolean" then
+			guiHardHidden = decoded.guiHardHidden
 		end
 	end)
 end
@@ -353,20 +357,12 @@ local function showNotice(text)
 	local noticeWidth = math.clamp(78 + (#msg * 6), 120, 260)
 
 	Notice.Size = UDim2.new(0, noticeWidth, 0, 26)
-	if NoticeGlow then
-		NoticeGlow.Size = UDim2.new(0, noticeWidth + 8, 0, 34)
-		NoticeGlow.Position = UDim2.new(1, -10, 0, 10)
-	end
 	Notice.Text = msg
 	Notice.Visible = true
 	Notice.Position = UDim2.new(1, noticeWidth + 20, 0, 14)
 	Notice.BackgroundTransparency = 1
 	Notice.TextTransparency = 1
 	NoticeStroke.Transparency = 1
-	if NoticeGlow then
-		NoticeGlow.Visible = true
-		NoticeGlow.BackgroundTransparency = 1
-	end
 	NoticeBar.BackgroundTransparency = 0
 	NoticeBar.Size = UDim2.new(1, -10, 0, 2)
 	NoticeBar.Position = UDim2.new(0, 5, 1, -4)
@@ -378,14 +374,8 @@ local function showNotice(text)
 	}):Play()
 
 	TweenService:Create(NoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Transparency = 0.45
+		Transparency = 0.9
 	}):Play()
-
-	if NoticeGlow then
-		TweenService:Create(NoticeGlow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundTransparency = 0.78
-		}):Play()
-	end
 
 	TweenService:Create(NoticeBar, TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
 		Size = UDim2.new(0, 0, 0, 2),
@@ -407,12 +397,6 @@ local function showNotice(text)
 			Transparency = 1
 		}):Play()
 
-		if NoticeGlow then
-			TweenService:Create(NoticeGlow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-				BackgroundTransparency = 1
-			}):Play()
-		end
-
 		TweenService:Create(NoticeBar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			BackgroundTransparency = 1
 		}):Play()
@@ -420,9 +404,6 @@ local function showNotice(text)
 		task.delay(0.25, function()
 			if myId == activeNoticeId then
 				Notice.Visible = false
-				if NoticeGlow then
-					NoticeGlow.Visible = false
-				end
 			end
 		end)
 	end)
@@ -946,26 +927,57 @@ local function setAutoFarmEnabled(state)
 	savePrefs()
 end
 
-local function applyVisibility()
+local function applyVisibility(showNoticeText)
 	if not MainFrame or not MiniButton then return end
+
+	if guiHardHidden then
+		MainFrame.Visible = false
+		MiniButton.Visible = false
+		savePrefs()
+
+		if showNoticeText then
+			showNotice(showNoticeText)
+		end
+
+		return
+	end
 
 	if guiVisible then
 		MiniButton.Visible = false
 		elegantShow(MainFrame, MAIN_SIZE, MainFrame.Position, 0)
 	else
 		elegantHide(MainFrame, function()
-			MiniButton.Visible = true
-			elegantShow(MiniButton, MINI_SIZE, MiniButton.Position, 0)
+			if not guiHardHidden then
+				MiniButton.Visible = true
+				elegantShow(MiniButton, MINI_SIZE, MiniButton.Position, 0)
+			end
 		end)
 	end
 
 	savePrefs()
+
+	if showNoticeText then
+		showNotice(showNoticeText)
+	end
 end
 
-local function setGuiVisible(state)
+local function setGuiVisible(state, noticeText)
+	guiHardHidden = false
 	guiVisible = state and true or false
-	applyVisibility()
-	showNotice(guiVisible and "GUI shown" or "GUI hidden")
+	applyVisibility(noticeText)
+end
+
+local function setGuiHardHidden(state)
+	guiHardHidden = state and true or false
+
+	if guiHardHidden then
+		MainFrame.Visible = false
+		MiniButton.Visible = false
+		savePrefs()
+		showNotice("GUI Hidden")
+	else
+		applyVisibility("GUI Restored")
+	end
 end
 
 local function destroyOld()
@@ -1093,19 +1105,6 @@ local function buildGui()
 	noTextStroke(footer)
 	setTargetTransparency(footer, 1, 0)
 
-	NoticeGlow = Instance.new("Frame")
-	NoticeGlow.Name = "NoticeGlow"
-	NoticeGlow.AnchorPoint = Vector2.new(1, 0)
-	NoticeGlow.Size = UDim2.new(0, 128, 0, 34)
-	NoticeGlow.Position = UDim2.new(1, -10, 0, 10)
-	NoticeGlow.BackgroundColor3 = Color3.fromRGB(255,255,255)
-	NoticeGlow.BackgroundTransparency = 1
-	NoticeGlow.BorderSizePixel = 0
-	NoticeGlow.Visible = false
-	NoticeGlow.ZIndex = 88
-	NoticeGlow.Parent = ScreenGui
-	Instance.new("UICorner", NoticeGlow).CornerRadius = UDim.new(0, 12)
-
 	Notice = Instance.new("TextLabel")
 	Notice.Size = UDim2.new(0, 120, 0, 26)
 	Notice.Position = UDim2.new(1, -14, 0, 14)
@@ -1223,7 +1222,7 @@ local function buildGui()
 	end)
 
 	minimize.Activated:Connect(function()
-		setGuiVisible(false)
+		setGuiVisible(false, "GUI Minimized")
 	end)
 
 	MiniButton.Activated:Connect(function()
@@ -1234,14 +1233,14 @@ local function buildGui()
 
 		playMiniClickAnimation()
 		task.delay(0.08, function()
-			setGuiVisible(true)
+			setGuiVisible(true, "GUI Restored")
 		end)
 	end)
 
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
 		if input.KeyCode == HIDE_KEY then
-			setGuiVisible(not guiVisible)
+			setGuiHardHidden(not guiHardHidden)
 		end
 	end)
 
@@ -1254,7 +1253,10 @@ local function buildGui()
 		startAutoFarm()
 	end
 
-	if guiVisible then
+	if guiHardHidden then
+		MainFrame.Visible = false
+		MiniButton.Visible = false
+	elseif guiVisible then
 		MiniButton.Visible = false
 		MainFrame.Visible = true
 		elegantShow(MainFrame, MAIN_SIZE, MainFrame.Position, 0)
@@ -1266,4 +1268,4 @@ local function buildGui()
 end
 
 buildGui()
-showNotice("Cerber X loadeeed")
+print("Cerber X Autofarm • Loaded Successfully ✅")
