@@ -15,6 +15,9 @@ local CERBER_ICON_IMAGE = "rbxassetid://98605939008332"
 local PREFS_FILE = "nyhito_cerberx_autofarm_prefs.json"
 local HIDE_KEY = Enum.KeyCode.C
 
+local MAIN_SIZE = UDim2.new(0, 315, 0, 220)
+local MINI_SIZE = UDim2.new(0, 134, 0, 38)
+
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Workspace = workspace
@@ -344,12 +347,12 @@ local function showNotice(message)
 	activeNoticeId += 1
 	local myId = activeNoticeId
 	local msg = tostring(message or "")
-	local noticeWidth = math.clamp(210 + (#msg * 4), 230, 460)
+	local noticeWidth = math.clamp(190 + (#msg * 4), 210, 390)
 
 	Notice.Size = UDim2.new(0, noticeWidth, 0, 30)
 	Notice.Text = msg
 	Notice.Visible = true
-	Notice.Position = UDim2.new(1, noticeWidth + 20, 0, 14)
+	Notice.Position = UDim2.new(1, noticeWidth + 24, 0, 18)
 	Notice.BackgroundTransparency = 1
 	Notice.TextTransparency = 1
 	NoticeStroke.Transparency = 1
@@ -360,7 +363,7 @@ local function showNotice(message)
 	TweenService:Create(Notice, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 0.08,
 		TextTransparency = 0,
-		Position = UDim2.new(1, -14, 0, 14)
+		Position = UDim2.new(1, -14, 0, 18)
 	}):Play()
 
 	TweenService:Create(NoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -378,7 +381,7 @@ local function showNotice(message)
 		TweenService:Create(Notice, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
 			BackgroundTransparency = 1,
 			TextTransparency = 1,
-			Position = UDim2.new(1, noticeWidth + 20, 0, 14)
+			Position = UDim2.new(1, noticeWidth + 24, 0, 18)
 		}):Play()
 
 		TweenService:Create(NoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -394,6 +397,38 @@ local function showNotice(message)
 				Notice.Visible = false
 			end
 		end)
+	end)
+end
+
+local function playMiniClickAnimation()
+	if not MiniButton then return end
+
+	local originalSize = MiniButton.Size
+	local originalPos = MiniButton.Position
+	local pressSize = UDim2.new(
+		originalSize.X.Scale, math.floor(originalSize.X.Offset * 0.94),
+		originalSize.Y.Scale, math.floor(originalSize.Y.Offset * 0.94)
+	)
+	local pressPos = UDim2.new(
+		originalPos.X.Scale, originalPos.X.Offset + math.floor((originalSize.X.Offset - pressSize.X.Offset) / 2),
+		originalPos.Y.Scale, originalPos.Y.Offset + math.floor((originalSize.Y.Offset - pressSize.Y.Offset) / 2)
+	)
+
+	local down = TweenService:Create(MiniButton, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = pressSize,
+		Position = pressPos,
+		BackgroundColor3 = Color3.fromRGB(12,12,12)
+	})
+
+	down:Play()
+	down.Completed:Connect(function()
+		if MiniButton and MiniButton.Parent then
+			TweenService:Create(MiniButton, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Size = originalSize,
+				Position = originalPos,
+				BackgroundColor3 = Color3.fromRGB(0,0,0)
+			}):Play()
+		end
 	end)
 end
 
@@ -482,8 +517,8 @@ end
 local function updateSwitchVisual(switchFrame, knob, enabled)
 	if not switchFrame or not knob then return end
 
-	local offPos = UDim2.new(0, 3, 0.5, -13)
-	local onPos = UDim2.new(1, -29, 0.5, -13)
+	local offPos = UDim2.new(0, 3, 0.5, -12)
+	local onPos = UDim2.new(1, -27, 0.5, -12)
 
 	TweenService:Create(switchFrame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		BackgroundColor3 = enabled and Color3.fromRGB(190,190,190) or Color3.fromRGB(20,20,24)
@@ -497,8 +532,8 @@ end
 
 local function createSwitchRow(parent, yOffset, labelText)
 	local row = Instance.new("TextButton")
-	row.Size = UDim2.new(1, -32, 0, 48)
-	row.Position = UDim2.new(0, 16, 0, yOffset)
+	row.Size = UDim2.new(1, -28, 0, 40)
+	row.Position = UDim2.new(0, 14, 0, yOffset)
 	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	row.AutoButtonColor = false
 	row.Text = ""
@@ -507,18 +542,18 @@ local function createSwitchRow(parent, yOffset, labelText)
 	row.ZIndex = 5
 	row.Active = true
 	row.Selectable = false
-	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 14)
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
 	setTargetTransparency(row, 0, 1)
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
 	label.Size = UDim2.new(1, -120, 1, 0)
-	label.Position = UDim2.new(0, 16, 0, 0)
+	label.Position = UDim2.new(0, 14, 0, 0)
 	label.BackgroundTransparency = 1
 	label.Text = labelText
 	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 18
+	label.TextSize = 16
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = row
 	label.ZIndex = 6
@@ -527,8 +562,8 @@ local function createSwitchRow(parent, yOffset, labelText)
 	setTargetTransparency(label, 1, 0)
 
 	local switch = Instance.new("Frame")
-	switch.Size = UDim2.new(0, 54, 0, 28)
-	switch.Position = UDim2.new(1, -78, 0.5, -14)
+	switch.Size = UDim2.new(0, 50, 0, 26)
+	switch.Position = UDim2.new(1, -68, 0.5, -13)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
@@ -538,8 +573,8 @@ local function createSwitchRow(parent, yOffset, labelText)
 	setTargetTransparency(switch, 0, nil)
 
 	local knob = Instance.new("Frame")
-	knob.Size = UDim2.new(0, 26, 0, 26)
-	knob.Position = UDim2.new(0, 3, 0.5, -13)
+	knob.Size = UDim2.new(0, 24, 0, 24)
+	knob.Position = UDim2.new(0, 3, 0.5, -12)
 	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
@@ -888,11 +923,11 @@ local function applyVisibility()
 
 	if guiVisible then
 		MiniButton.Visible = false
-		elegantShow(MainFrame, UDim2.new(0, 385, 0, 270), MainFrame.Position, 0)
+		elegantShow(MainFrame, MAIN_SIZE, MainFrame.Position, 0)
 	else
 		elegantHide(MainFrame, function()
 			MiniButton.Visible = true
-			elegantShow(MiniButton, UDim2.new(0, 150, 0, 42), MiniButton.Position, 0)
+			elegantShow(MiniButton, MINI_SIZE, MiniButton.Position, 0)
 		end)
 	end
 
@@ -927,20 +962,20 @@ local function buildGui()
 
 	MainFrame = Instance.new("Frame")
 	MainFrame.Name = "MainFrame"
-	MainFrame.Size = UDim2.new(0, 385, 0, 270)
-	MainFrame.Position = getSavedPosition("main", UDim2.new(0, 24, 0, 80))
+	MainFrame.Size = MAIN_SIZE
+	MainFrame.Position = getSavedPosition("main", UDim2.new(0, 24, 0, 76))
 	MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
 	MainFrame.ZIndex = 1
 	MainFrame.Active = true
-	Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 22)
+	Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 18)
 	setTargetTransparency(MainFrame, 0, nil)
-	addTrueRoundedShadow(MainFrame, 22, 1.1)
+	addTrueRoundedShadow(MainFrame, 18, 1.0)
 
 	local dragArea = Instance.new("Frame")
 	dragArea.Name = "DragArea"
-	dragArea.Size = UDim2.new(1, -58, 0, 88)
+	dragArea.Size = UDim2.new(1, -50, 0, 70)
 	dragArea.Position = UDim2.new(0, 0, 0, 0)
 	dragArea.BackgroundTransparency = 1
 	dragArea.Parent = MainFrame
@@ -948,13 +983,13 @@ local function buildGui()
 	setTargetTransparency(dragArea, 1, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(0, 190, 0, 46)
-	title.Position = UDim2.new(0, 16, 0, 8)
+	title.Size = UDim2.new(0, 150, 0, 38)
+	title.Position = UDim2.new(0, 14, 0, 8)
 	title.BackgroundTransparency = 1
 	title.Text = "Cerber X"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
 	title.Font = Enum.Font.GothamBold
-	title.TextSize = 32
+	title.TextSize = 27
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = MainFrame
 	title.ZIndex = 4
@@ -962,8 +997,8 @@ local function buildGui()
 	setTargetTransparency(title, 1, 0)
 
 	local icon = Instance.new("ImageLabel")
-	icon.Size = UDim2.new(0, 52, 0, 52)
-	icon.Position = UDim2.new(0, 164, 0, 7)
+	icon.Size = UDim2.new(0, 44, 0, 44)
+	icon.Position = UDim2.new(0, 148, 0, 7)
 	icon.BackgroundTransparency = 1
 	icon.Image = CERBER_ICON_IMAGE
 	icon.Parent = MainFrame
@@ -971,13 +1006,13 @@ local function buildGui()
 	setTargetTransparency(icon, 1, nil)
 
 	local version = Instance.new("TextLabel")
-	version.Size = UDim2.new(0, 210, 0, 24)
-	version.Position = UDim2.new(0, 17, 0, 51)
+	version.Size = UDim2.new(0, 190, 0, 22)
+	version.Position = UDim2.new(0, 15, 0, 44)
 	version.BackgroundTransparency = 1
 	version.Text = "Autofarm Version"
 	version.TextColor3 = Color3.fromRGB(110,110,110)
 	version.Font = Enum.Font.Gotham
-	version.TextSize = 19
+	version.TextSize = 16
 	version.TextXAlignment = Enum.TextXAlignment.Left
 	version.Parent = MainFrame
 	version.ZIndex = 4
@@ -985,13 +1020,13 @@ local function buildGui()
 	setTargetTransparency(version, 1, 0)
 
 	local minimize = Instance.new("TextButton")
-	minimize.Size = UDim2.new(0, 44, 0, 44)
-	minimize.Position = UDim2.new(1, -58, 0, 16)
+	minimize.Size = UDim2.new(0, 38, 0, 38)
+	minimize.Position = UDim2.new(1, -48, 0, 14)
 	minimize.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	minimize.Text = "—"
 	minimize.TextColor3 = Color3.fromRGB(255,255,255)
 	minimize.Font = Enum.Font.GothamBold
-	minimize.TextSize = 26
+	minimize.TextSize = 23
 	minimize.AutoButtonColor = false
 	minimize.Parent = MainFrame
 	minimize.ZIndex = 6
@@ -1001,29 +1036,29 @@ local function buildGui()
 
 	local functionsTitle = Instance.new("TextLabel")
 	functionsTitle.Size = UDim2.new(1, -32, 0, 32)
-	functionsTitle.Position = UDim2.new(0, 16, 0, 86)
+	functionsTitle.Position = UDim2.new(0, 14, 0, 72)
 	functionsTitle.BackgroundTransparency = 1
 	functionsTitle.Text = "Functions"
 	functionsTitle.TextColor3 = Color3.fromRGB(255,255,255)
 	functionsTitle.Font = Enum.Font.GothamBold
-	functionsTitle.TextSize = 26
+	functionsTitle.TextSize = 22
 	functionsTitle.TextXAlignment = Enum.TextXAlignment.Left
 	functionsTitle.Parent = MainFrame
 	functionsTitle.ZIndex = 4
 	noTextStroke(functionsTitle)
 	setTargetTransparency(functionsTitle, 1, 0)
 
-	HitAuraRow, HitAuraSwitch, HitAuraKnob = createSwitchRow(MainFrame, 124, "Hit Aura")
-	AutoFarmRow, AutoFarmSwitch, AutoFarmKnob = createSwitchRow(MainFrame, 178, "Auto farm")
+	HitAuraRow, HitAuraSwitch, HitAuraKnob = createSwitchRow(MainFrame, 108, "Hit Aura")
+	AutoFarmRow, AutoFarmSwitch, AutoFarmKnob = createSwitchRow(MainFrame, 154, "Auto farm")
 
 	local footer = Instance.new("TextLabel")
 	footer.Size = UDim2.new(1, -32, 0, 24)
-	footer.Position = UDim2.new(0, 16, 1, -34)
+	footer.Position = UDim2.new(0, 14, 1, -28)
 	footer.BackgroundTransparency = 1
 	footer.Text = "Hide GUI Keybind: C | Cerber X"
 	footer.TextColor3 = Color3.fromRGB(110,110,110)
 	footer.Font = Enum.Font.Gotham
-	footer.TextSize = 15
+	footer.TextSize = 13
 	footer.TextXAlignment = Enum.TextXAlignment.Left
 	footer.Parent = MainFrame
 	footer.ZIndex = 4
@@ -1040,8 +1075,8 @@ local function buildGui()
 	Notice.TextSize = 13
 	Notice.TextXAlignment = Enum.TextXAlignment.Center
 	Notice.Visible = false
-	Notice.Parent = MainFrame
-	Notice.ZIndex = 30
+	Notice.Parent = ScreenGui
+	Notice.ZIndex = 200
 	Instance.new("UICorner", Notice).CornerRadius = UDim.new(0, 10)
 	noTextStroke(Notice)
 
@@ -1057,26 +1092,26 @@ local function buildGui()
 	NoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
 	NoticeBar.BorderSizePixel = 0
 	NoticeBar.Parent = Notice
-	NoticeBar.ZIndex = 31
+	NoticeBar.ZIndex = 201
 
 	MiniButton = Instance.new("TextButton")
 	MiniButton.Name = "MiniButton"
-	MiniButton.Size = UDim2.new(0, 150, 0, 42)
+	MiniButton.Size = MINI_SIZE
 	MiniButton.Position = getSavedPosition("mini", UDim2.new(0, 220, 0, 160))
 	MiniButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	MiniButton.Text = "Cerber X"
 	MiniButton.TextColor3 = Color3.fromRGB(190,190,190)
 	MiniButton.Font = Enum.Font.GothamBold
-	MiniButton.TextSize = 17
+	MiniButton.TextSize = 16
 	MiniButton.AutoButtonColor = false
 	MiniButton.Visible = false
 	MiniButton.Parent = ScreenGui
 	MiniButton.ZIndex = 50
 	MiniButton.Active = true
-	Instance.new("UICorner", MiniButton).CornerRadius = UDim.new(0, 16)
+	Instance.new("UICorner", MiniButton).CornerRadius = UDim.new(0, 14)
 	noTextStroke(MiniButton)
 	setTargetTransparency(MiniButton, 0, 0)
-	addTrueRoundedShadow(MiniButton, 16, 1)
+	addTrueRoundedShadow(MiniButton, 14, 1)
 
 	makeDraggable(MainFrame, dragArea, false)
 	makeDraggable(MiniButton, MiniButton, true)
@@ -1143,7 +1178,10 @@ local function buildGui()
 			return
 		end
 
-		setGuiVisible(true)
+		playMiniClickAnimation()
+		task.delay(0.08, function()
+			setGuiVisible(true)
+		end)
 	end)
 
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -1165,13 +1203,13 @@ local function buildGui()
 	if guiVisible then
 		MiniButton.Visible = false
 		MainFrame.Visible = true
-		elegantShow(MainFrame, UDim2.new(0, 385, 0, 270), MainFrame.Position, 0)
+		elegantShow(MainFrame, MAIN_SIZE, MainFrame.Position, 0)
 	else
 		MainFrame.Visible = false
 		MiniButton.Visible = true
-		elegantShow(MiniButton, UDim2.new(0, 150, 0, 42), MiniButton.Position, 0)
+		elegantShow(MiniButton, MINI_SIZE, MiniButton.Position, 0)
 	end
 end
 
 buildGui()
-showNotice("Cerber X Autofarm • Loaded Sucessfully ✅")
+showNotice("Cerber X loaded")
