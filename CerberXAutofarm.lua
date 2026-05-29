@@ -9,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CERBER_ICON_IMAGE = "rbxassetid://98605939008332"
@@ -71,6 +72,17 @@ local dragConnections = {}
 
 LocalPlayer.CharacterAdded:Connect(function(char)
 	character = char
+end)
+
+-- Anti-AFK native
+-- Always active, no switch needed. Infinite Yield style.
+pcall(function()
+	LocalPlayer.Idled:Connect(function()
+		pcall(function()
+			VirtualUser:CaptureController()
+			VirtualUser:ClickButton2(Vector2.new())
+		end)
+	end)
 end)
 
 local function getChar(player)
@@ -465,7 +477,7 @@ local function makeDraggable(frame, handle, longPressOnly)
 
 		pressStart = tick()
 		longPressReady = not longPressOnly
-		longPressToken += 1
+		longPressToken = longPressToken + 1
 		local thisToken = longPressToken
 
 		if longPressOnly then
@@ -506,7 +518,7 @@ local function makeDraggable(frame, handle, longPressOnly)
 
 		local wasDragging = dragging
 
-		longPressToken += 1
+		longPressToken = longPressToken + 1
 		dragging = false
 		dragInput = nil
 		dragStart = nil
@@ -842,7 +854,7 @@ local function recoverLocalCharacterIfStuck()
 end
 
 local function startHitAura()
-	hitAuraToken += 1
+	hitAuraToken = hitAuraToken + 1
 	local token = hitAuraToken
 
 	task.spawn(function()
@@ -861,7 +873,7 @@ end
 
 local function setHitAuraEnabled(state)
 	hitAuraEnabled = state and true or false
-	hitAuraToken += 1
+	hitAuraToken = hitAuraToken + 1
 
 	if hitAuraEnabled then
 		startHitAura()
@@ -875,7 +887,7 @@ local function setHitAuraEnabled(state)
 end
 
 local function startAutoFarm()
-	autofarmToken += 1
+	autofarmToken = autofarmToken + 1
 	local token = autofarmToken
 
 	task.spawn(function()
@@ -914,7 +926,7 @@ end
 
 local function setAutoFarmEnabled(state)
 	autoFarmEnabled = state and true or false
-	autofarmToken += 1
+	autofarmToken = autofarmToken + 1
 
 	if autoFarmEnabled then
 		startAutoFarm()
