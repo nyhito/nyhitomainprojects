@@ -349,9 +349,9 @@ local function showNotice(text)
 	activeNoticeId = activeNoticeId + 1
 	local myId = activeNoticeId
 	local msg = tostring(text or "")
-	local noticeWidth = math.clamp(210 + (#msg * 4), 230, 460)
+	local noticeWidth = math.clamp(78 + (#msg * 6), 120, 260)
 
-	Notice.Size = UDim2.new(0, noticeWidth, 0, 30)
+	Notice.Size = UDim2.new(0, noticeWidth, 0, 26)
 	Notice.Text = msg
 	Notice.Visible = true
 	Notice.Position = UDim2.new(1, noticeWidth + 20, 0, 14)
@@ -359,8 +359,8 @@ local function showNotice(text)
 	Notice.TextTransparency = 1
 	NoticeStroke.Transparency = 1
 	NoticeBar.BackgroundTransparency = 0
-	NoticeBar.Size = UDim2.new(1, -12, 0, 2)
-	NoticeBar.Position = UDim2.new(0, 6, 1, -4)
+	NoticeBar.Size = UDim2.new(1, -10, 0, 2)
+	NoticeBar.Position = UDim2.new(0, 5, 1, -4)
 
 	TweenService:Create(Notice, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 0.08,
@@ -372,12 +372,12 @@ local function showNotice(text)
 		Transparency = 0.9
 	}):Play()
 
-	TweenService:Create(NoticeBar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+	TweenService:Create(NoticeBar, TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
 		Size = UDim2.new(0, 0, 0, 2),
 		Position = UDim2.new(1, -6, 1, -4)
 	}):Play()
 
-	task.delay(2, function()
+	task.delay(0.8, function()
 		if myId ~= activeNoticeId then
 			return
 		end
@@ -1002,7 +1002,7 @@ local function buildGui()
 
 	local icon = Instance.new("ImageLabel")
 	icon.Size = UDim2.new(0, 50, 0, 50)
-	icon.Position = UDim2.new(0, 75, 0, 3)
+	icon.Position = UDim2.new(0, 94, 0, 3)
 	icon.BackgroundTransparency = 1
 	icon.Image = CERBER_ICON_IMAGE
 	icon.Parent = MainFrame
@@ -1070,7 +1070,7 @@ local function buildGui()
 	setTargetTransparency(footer, 1, 0)
 
 	Notice = Instance.new("TextLabel")
-	Notice.Size = UDim2.new(0, 230, 0, 30)
+	Notice.Size = UDim2.new(0, 120, 0, 26)
 	Notice.Position = UDim2.new(1, -14, 0, 14)
 	Notice.AnchorPoint = Vector2.new(1, 0)
 	Notice.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -1078,7 +1078,7 @@ local function buildGui()
 	Notice.TextColor3 = Color3.fromRGB(255,255,255)
 	Notice.TextTransparency = 1
 	Notice.Font = Enum.Font.GothamBold
-	Notice.TextSize = 11
+	Notice.TextSize = 10
 	Notice.TextWrapped = false
 	Notice.TextXAlignment = Enum.TextXAlignment.Left
 	Notice.TextYAlignment = Enum.TextYAlignment.Center
@@ -1088,16 +1088,16 @@ local function buildGui()
 	Notice.Parent = ScreenGui
 	Instance.new("UICorner", Notice).CornerRadius = UDim.new(0, 10)
 	local noticePadding = Instance.new("UIPadding")
-	noticePadding.PaddingLeft = UDim.new(0, 8)
-	noticePadding.PaddingRight = UDim.new(0, 8)
+	noticePadding.PaddingLeft = UDim.new(0, 7)
+	noticePadding.PaddingRight = UDim.new(0, 7)
 	noticePadding.PaddingTop = UDim.new(0, 2)
 	noticePadding.Parent = Notice
 	noTextStroke(Notice)
 	setTargetTransparency(Notice, 0.08, 0)
 
 	NoticeBar = Instance.new("Frame")
-	NoticeBar.Size = UDim2.new(1, -12, 0, 2)
-	NoticeBar.Position = UDim2.new(0, 6, 1, -4)
+	NoticeBar.Size = UDim2.new(1, -10, 0, 2)
+	NoticeBar.Position = UDim2.new(0, 5, 1, -4)
 	NoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
 	NoticeBar.BackgroundTransparency = 0
 	NoticeBar.BorderSizePixel = 0
@@ -1229,4 +1229,4 @@ local function buildGui()
 end
 
 buildGui()
-showNotice("Cerber X loadeddd")
+showNotice("Cerber X loaded")
