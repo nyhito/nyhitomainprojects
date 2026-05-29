@@ -49,6 +49,7 @@ local MiniButton
 local Notice
 local NoticeStroke
 local NoticeBar
+local NoticeGlow
 local HitAuraRow
 local AutoFarmRow
 local HitAuraSwitch
@@ -352,12 +353,20 @@ local function showNotice(text)
 	local noticeWidth = math.clamp(78 + (#msg * 6), 120, 260)
 
 	Notice.Size = UDim2.new(0, noticeWidth, 0, 26)
+	if NoticeGlow then
+		NoticeGlow.Size = UDim2.new(0, noticeWidth + 8, 0, 34)
+		NoticeGlow.Position = UDim2.new(1, -10, 0, 10)
+	end
 	Notice.Text = msg
 	Notice.Visible = true
 	Notice.Position = UDim2.new(1, noticeWidth + 20, 0, 14)
 	Notice.BackgroundTransparency = 1
 	Notice.TextTransparency = 1
 	NoticeStroke.Transparency = 1
+	if NoticeGlow then
+		NoticeGlow.Visible = true
+		NoticeGlow.BackgroundTransparency = 1
+	end
 	NoticeBar.BackgroundTransparency = 0
 	NoticeBar.Size = UDim2.new(1, -10, 0, 2)
 	NoticeBar.Position = UDim2.new(0, 5, 1, -4)
@@ -369,8 +378,14 @@ local function showNotice(text)
 	}):Play()
 
 	TweenService:Create(NoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Transparency = 0.9
+		Transparency = 0.45
 	}):Play()
+
+	if NoticeGlow then
+		TweenService:Create(NoticeGlow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 0.78
+		}):Play()
+	end
 
 	TweenService:Create(NoticeBar, TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
 		Size = UDim2.new(0, 0, 0, 2),
@@ -392,6 +407,12 @@ local function showNotice(text)
 			Transparency = 1
 		}):Play()
 
+		if NoticeGlow then
+			TweenService:Create(NoticeGlow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1
+			}):Play()
+		end
+
 		TweenService:Create(NoticeBar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			BackgroundTransparency = 1
 		}):Play()
@@ -399,6 +420,9 @@ local function showNotice(text)
 		task.delay(0.25, function()
 			if myId == activeNoticeId then
 				Notice.Visible = false
+				if NoticeGlow then
+					NoticeGlow.Visible = false
+				end
 			end
 		end)
 	end)
@@ -1002,7 +1026,7 @@ local function buildGui()
 
 	local icon = Instance.new("ImageLabel")
 	icon.Size = UDim2.new(0, 50, 0, 50)
-	icon.Position = UDim2.new(0, 94, 0, 3)
+	icon.Position = UDim2.new(0, 116, 0, 3)
 	icon.BackgroundTransparency = 1
 	icon.Image = CERBER_ICON_IMAGE
 	icon.Parent = MainFrame
@@ -1068,6 +1092,19 @@ local function buildGui()
 	footer.ZIndex = 4
 	noTextStroke(footer)
 	setTargetTransparency(footer, 1, 0)
+
+	NoticeGlow = Instance.new("Frame")
+	NoticeGlow.Name = "NoticeGlow"
+	NoticeGlow.AnchorPoint = Vector2.new(1, 0)
+	NoticeGlow.Size = UDim2.new(0, 128, 0, 34)
+	NoticeGlow.Position = UDim2.new(1, -10, 0, 10)
+	NoticeGlow.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	NoticeGlow.BackgroundTransparency = 1
+	NoticeGlow.BorderSizePixel = 0
+	NoticeGlow.Visible = false
+	NoticeGlow.ZIndex = 88
+	NoticeGlow.Parent = ScreenGui
+	Instance.new("UICorner", NoticeGlow).CornerRadius = UDim.new(0, 12)
 
 	Notice = Instance.new("TextLabel")
 	Notice.Size = UDim2.new(0, 120, 0, 26)
@@ -1229,4 +1266,4 @@ local function buildGui()
 end
 
 buildGui()
-showNotice("Cerber X loaded")
+showNotice("Cerber X loadeeed")
