@@ -1,0 +1,474 @@
+local VIM = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+
+--========================
+-- DESTINO
+--========================
+
+local destino = CFrame.new(-1454, -1, 1503)
+
+
+
+--========================
+-- NOTIFICAÇÃO
+--========================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TPSystem"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+
+local noticeId = 0
+
+
+local function showNotice(message)
+
+    noticeId += 1
+    local id = noticeId
+
+
+    local longMsg = #message > 38
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(
+        0,
+        longMsg and 330 or 230,
+        0,
+        longMsg and 48 or 30
+    )
+
+    frame.Position = UDim2.new(1,250,0,14)
+    frame.AnchorPoint = Vector2.new(1,0)
+
+    frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    frame.BackgroundTransparency = 1
+
+    frame.Parent = ScreenGui
+
+
+    local corner = Instance.new("UICorner")
+    corner.Parent = frame
+    corner.CornerRadius = UDim.new(0,10)
+
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255,255,255)
+    stroke.Transparency = 1
+    stroke.Parent = frame
+
+
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1,-14,1,-10)
+    text.Position = UDim2.new(0,7,0,3)
+
+    text.BackgroundTransparency = 1
+    text.Text = message
+
+    text.TextColor3 = Color3.fromRGB(255,255,255)
+    text.TextTransparency = 1
+
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = longMsg and 10 or 11
+
+    text.TextWrapped = true
+    text.TextXAlignment = Enum.TextXAlignment.Left
+    text.TextYAlignment = Enum.TextYAlignment.Center
+
+    text.Parent = frame
+
+
+
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(1,-12,0,2)
+    bar.Position = UDim2.new(0,6,1,-4)
+
+    bar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    bar.Parent = frame
+
+
+    local barCorner = Instance.new("UICorner")
+    barCorner.Parent = bar
+    barCorner.CornerRadius = UDim.new(1,0)
+
+
+
+    TweenService:Create(
+        frame,
+        TweenInfo.new(
+            0.2,
+            Enum.EasingStyle.Quart,
+            Enum.EasingDirection.Out
+        ),
+        {
+            BackgroundTransparency = 0.08,
+            Position = UDim2.new(1,-14,0,14)
+        }
+    ):Play()
+
+
+    TweenService:Create(
+        text,
+        TweenInfo.new(0.2),
+        {
+            TextTransparency = 0
+        }
+    ):Play()
+
+
+    TweenService:Create(
+        stroke,
+        TweenInfo.new(0.18),
+        {
+            Transparency = 0.9
+        }
+    ):Play()
+
+
+    TweenService:Create(
+        bar,
+        TweenInfo.new(2),
+        {
+            Size = UDim2.new(0,0,0,2)
+        }
+    ):Play()
+
+
+
+    task.delay(2,function()
+
+        if id ~= noticeId then
+            return
+        end
+
+
+        TweenService:Create(
+            frame,
+            TweenInfo.new(
+                0.2,
+                Enum.EasingStyle.Quart,
+                Enum.EasingDirection.In
+            ),
+            {
+                Position = UDim2.new(1,250,0,14),
+                BackgroundTransparency = 1
+            }
+        ):Play()
+
+
+        TweenService:Create(
+            text,
+            TweenInfo.new(0.15),
+            {
+                TextTransparency = 1
+            }
+        ):Play()
+
+
+        task.wait(0.25)
+
+        frame:Destroy()
+
+    end)
+
+end
+
+
+
+--========================
+-- BOTÃO TP
+--========================
+
+local button = Instance.new("TextButton")
+
+button.Parent = ScreenGui
+button.Size = UDim2.new(0,120,0,45)
+button.Position = UDim2.new(0,20,0.5,0)
+
+button.BackgroundColor3 = Color3.fromRGB(25,25,25)
+
+button.Text = "TP"
+
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 18
+
+button.Active = true
+button.Draggable = true
+
+
+
+local corner = Instance.new("UICorner")
+corner.Parent = button
+corner.CornerRadius = UDim.new(0,12)
+
+
+
+local stroke = Instance.new("UIStroke")
+stroke.Parent = button
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(255,255,255)
+
+
+
+button.MouseButton1Click:Connect(function()
+
+
+    button.Size = UDim2.new(0,110,0,40)
+
+    task.wait(0.08)
+
+    button.Size = UDim2.new(0,120,0,45)
+
+
+
+    local box = Instance.new("TextBox")
+
+    box.Parent = ScreenGui
+
+    box.Size = UDim2.new(0,250,0,45)
+
+    box.Position = UDim2.new(0,20,0.5,60)
+
+    box.BackgroundColor3 = Color3.fromRGB(25,25,25)
+
+    box.TextColor3 = Color3.fromRGB(255,255,255)
+
+    box.PlaceholderText = "X,Y,Z"
+
+    box.Font = Enum.Font.Gotham
+
+    box.TextSize = 18
+
+    box.ClearTextOnFocus = false
+
+
+
+    local bc = Instance.new("UICorner")
+    bc.Parent = box
+    bc.CornerRadius = UDim.new(0,10)
+        local confirm = Instance.new("TextButton")
+
+    confirm.Parent = ScreenGui
+
+    confirm.Size = UDim2.new(0,100,0,40)
+
+    confirm.Position = UDim2.new(0,280,0.5,62)
+
+    confirm.Text = "OK"
+
+    confirm.Font = Enum.Font.GothamBold
+
+    confirm.TextColor3 = Color3.new(1,1,1)
+
+    confirm.BackgroundColor3 = Color3.fromRGB(0,170,255)
+
+
+
+    local cc = Instance.new("UICorner")
+
+    cc.Parent = confirm
+
+    cc.CornerRadius = UDim.new(0,10)
+
+
+
+    confirm.MouseButton1Click:Connect(function()
+
+        local x,y,z = box.Text:match("([^,]+),([^,]+),([^,]+)")
+
+
+        x = tonumber(x)
+        y = tonumber(y)
+        z = tonumber(z)
+
+
+
+        if x and y and z then
+
+            destino = CFrame.new(
+                x,
+                y,
+                z
+            )
+
+
+            showNotice(
+                "Position updated: "..x..", "..y..", "..z
+            )
+
+
+        else
+
+
+            showNotice(
+                "Invalid coordinates"
+            )
+
+
+        end
+
+
+
+        box:Destroy()
+
+        confirm:Destroy()
+
+
+    end)
+
+
+end)
+
+
+
+--========================
+-- CLIQUES
+--========================
+
+
+local function clicar(x,y)
+
+
+    VIM:SendMouseMoveEvent(
+        x,
+        y,
+        game
+    )
+
+
+    task.wait(0.1)
+
+
+    VIM:SendMouseButtonEvent(
+        x,
+        y,
+        0,
+        true,
+        game,
+        0
+    )
+
+
+    task.wait(0.05)
+
+
+    VIM:SendMouseButtonEvent(
+        x,
+        y,
+        0,
+        false,
+        game,
+        0
+    )
+
+
+end
+
+
+
+--========================
+-- TELEPORTE
+--========================
+
+
+local function teleportar()
+
+
+    local char =
+        player.Character or player.CharacterAdded:Wait()
+
+
+    local root =
+        char:WaitForChild("HumanoidRootPart")
+
+
+    root.CFrame = destino
+
+
+end
+
+
+
+--========================
+-- POSIÇÕES DOS BOTÕES
+--========================
+
+
+local ABRIR_X = 105
+local ABRIR_Y = 190
+
+
+local FECHAR_X = 720
+local FECHAR_Y = 74
+
+
+local RESTAURANTE_X = 560
+local RESTAURANTE_Y = 33
+--========================
+-- LOOP PRINCIPAL
+--========================
+
+
+task.wait(3)
+
+
+
+while true do
+
+
+    -- abre loja
+
+    clicar(
+        ABRIR_X,
+        ABRIR_Y
+    )
+
+
+    task.wait(5)
+
+
+
+    -- fecha loja
+
+    clicar(
+        FECHAR_X,
+        FECHAR_Y
+    )
+
+
+    task.wait(0.5)
+
+
+
+    -- botão Para Restaurante
+
+    clicar(
+        RESTAURANTE_X,
+        RESTAURANTE_Y
+    )
+
+
+    task.wait(2)
+
+
+
+    -- teleporta para destino atualizado
+
+    teleportar()
+
+
+
+    -- espera 5 minutos
+
+    task.wait(300)
+
+
+
+end
