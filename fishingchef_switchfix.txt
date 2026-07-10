@@ -1,0 +1,914 @@
+-- Cerber W adaptado para AFKFish
+-- Layout base por nyhito
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local VIM = game:GetService("VirtualInputManager")
+
+local CERBER_ICON_IMAGE = "rbxassetid://98605939008332"
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
+
+local PREFS_FILE = "cerber_afkfish_prefs.json"
+selectedMode = nil
+
+-- Variáveis AFKFish
+local afkFishEnabled = false
+local autoMegEnabled = false
+local autoKoiEnabled = false
+local autoMmtEnabled = false
+
+local afkFishTime = 5 -- Em minutos
+local afkFishDestino = CFrame.new(-1454, -1, 1503)
+local afkFishPositionStr = "-1454, -1, 1503"
+
+guiVisible = true
+mobileMenuOpen = false
+
+ScreenGui = nil
+MainFrame = nil
+MobileButton = nil
+MobileMenuButton = nil
+MobilePanel = nil
+ToggleButton = nil
+Notice = nil
+NoticeStroke = nil
+NoticeBar = nil
+
+PcTabFunctions = nil
+PcTabFlicks = nil
+PcTabSettings = nil
+PcFunctionsPage = nil
+PcFlicksPage = nil
+PcSettingsPage = nil
+
+MobileTabFunctions = nil
+MobileTabFlicks = nil
+MobileTabSettings = nil
+MobileFunctionsPage = nil
+MobileFlicksPage = nil
+MobileSettingsPage = nil
+
+-- Toggles Mobile
+local mobileAutoMegSwitch, mobileAutoMegKnob
+local mobileAutoKoiSwitch, mobileAutoKoiKnob
+local mobileAutoMmtSwitch, mobileAutoMmtKnob
+
+-- Inputs Settings Mobile
+local SettingsAfkTimeBox
+local SettingsAfkPosBox
+
+local shadowRegistry = {}
+local dragConnections = {}
+
+local function destroyOld()
+	for _, name in ipairs({"AutoWallHopGui", "AutoWallHopGuiMobile", "WallhopModeSelector", "TPSystem"}) do
+		local old = PlayerGui:FindFirstChild(name)
+		if old then old:Destroy() end
+	end
+end
+destroyOld()
+
+-- ==========================================
+-- SISTEMA DE SALVAMENTO
+-- ==========================================
+local function saveUserPreferences()
+	if not writefile then return end
+	local payload = {
+		afkFishTime = tonumber(afkFishTime) or 5,
+		afkFishPositionStr = tostring(afkFishPositionStr),
+		autoMegEnabled = autoMegEnabled,
+		autoKoiEnabled = autoKoiEnabled,
+		autoMmtEnabled = autoMmtEnabled
+	}
+	pcall(function()
+		writefile(PREFS_FILE, HttpService:JSONEncode(payload))
+	end)
+end
+
+local function loadUserPreferences()
+	if not readfile or not isfile or not isfile(PREFS_FILE) then return end
+	pcall(function()
+		local raw = readfile(PREFS_FILE)
+		local decoded = HttpService:JSONDecode(raw)
+		if tonumber(decoded.afkFishTime) then
+			afkFishTime = math.clamp(math.floor(tonumber(decoded.afkFishTime)), 1, 60)
+		end
+		if type(decoded.afkFishPositionStr) == "string" then
+			afkFishPositionStr = decoded.afkFishPositionStr
+			local x, y, z = afkFishPositionStr:match("([^,]+),([^,]+),([^,]+)")
+			if x and y and z then
+				afkFishDestino = CFrame.new(tonumber(x), tonumber(y), tonumber(z))
+			end
+		end
+		if type(decoded.autoMegEnabled) == "boolean" then autoMegEnabled = decoded.autoMegEnabled end
+		if type(decoded.autoKoiEnabled) == "boolean" then autoKoiEnabled = decoded.autoKoiEnabled end
+		if type(decoded.autoMmtEnabled) == "boolean" then autoMmtEnabled = decoded.autoMmtEnabled end
+	end)
+end
+
+-- ==========================================
+-- EFEITOS VISUAIS E GUI HELPERS
+-- ==========================================
+local function noTextStroke(obj) obj.TextStrokeTransparency = 1 end
+
+local function registerShadow(host, shadow)
+	shadowRegistry[host] = shadowRegistry[host] or {}
+	table.insert(shadowRegistry[host], shadow)
+end
+
+local function setHostShadowVisible(host, visible)
+	local list = shadowRegistry[host]
+	if not list then return end
+	for _, shadow in ipairs(list) do
+		shadow.Visible = visible
+		shadow.BackgroundTransparency = visible and shadow:GetAttribute("BaseTransparency") or 1
+	end
+end
+
+local function setTargetTransparency(obj, bg, text)
+	if bg ~= nil then obj:SetAttribute("TargetBGTransparency", bg) end
+	if text ~= nil then obj:SetAttribute("TargetTextTransparency", text) end
+end
+
+local function getTargetBG(obj)
+	local v = obj:GetAttribute("TargetBGTransparency")
+	return typeof(v) == "number" and v or obj.BackgroundTransparency
+end
+
+local function getTargetText(obj)
+	local v = obj:GetAttribute("TargetTextTransparency")
+	return typeof(v) == "number" and v or obj.TextTransparency
+end
+
+local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
+	strength = strength or 1
+	shadowColor = shadowColor or Color3.fromRGB(0, 0, 0)
+	local layers = {
+		{grow = math.floor(8 * strength), transparency = 0.82, y = 2},
+		{grow = math.floor(16 * strength), transparency = 0.90, y = 4},
+		{grow = math.floor(24 * strength), transparency = 0.95, y = 6},
+	}
+	for _, cfg in ipairs(layers) do
+		local shadow = Instance.new("Frame")
+		shadow.Name = "TrueShadow"
+		shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+		shadow.Position = UDim2.new(0.5, 0, 0.5, cfg.y)
+		shadow.Size = UDim2.new(1, cfg.grow, 1, cfg.grow)
+		shadow.BackgroundColor3 = shadowColor
+		shadow.BackgroundTransparency = cfg.transparency
+		shadow.BorderSizePixel = 0
+		shadow.ZIndex = math.max(parent.ZIndex - 1, 0)
+		shadow.Parent = parent
+		shadow:SetAttribute("BaseTransparency", cfg.transparency)
+		Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, cornerRadius + math.floor(cfg.grow / 2.1))
+		registerShadow(parent, shadow)
+	end
+end
+
+local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
+	if not root then return end
+	root.Visible = true
+	local targetSize = finalSize or root.Size
+	local targetPos = finalPosition or root.Position
+	local targetBg = finalBgTransparency
+	if targetBg == nil then targetBg = getTargetBG(root) end
+	
+	-- Configura o estado inicial para animação
+	root.Size = UDim2.new(targetSize.X.Scale * 0.72, math.floor(targetSize.X.Offset * 0.72), targetSize.Y.Scale * 0.72, math.floor(targetSize.Y.Offset * 0.72))
+	root.Position = targetPos
+	root.BackgroundTransparency = 1
+	setHostShadowVisible(root, false)
+
+	-- FORÇAR VISIBILIDADE DOS TEXTOS IMEDIATAMENTE (Correção)
+	for _, obj in ipairs(root:GetDescendants()) do
+		if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			obj.TextTransparency = getTargetText(obj)
+		end
+		if obj:IsA("Frame") or obj:IsA("TextButton") then
+			obj.BackgroundTransparency = getTargetBG(obj)
+		end
+	end
+	task.defer(function()
+		if mobileAutoMegSwitch then updateSwitchVisual(mobileAutoMegSwitch,mobileAutoMegKnob,autoMegEnabled) end
+		if mobileAutoKoiSwitch then updateSwitchVisual(mobileAutoKoiSwitch,mobileAutoKoiKnob,autoKoiEnabled) end
+		if mobileAutoMmtSwitch then updateSwitchVisual(mobileAutoMmtSwitch,mobileAutoMmtKnob,autoMmtEnabled) end
+		if mobileAfkFishSwitch then updateSwitchVisual(mobileAfkFishSwitch,mobileAfkFishKnob,afkFishEnabled) end
+	end)
+
+	-- Executa a animação de entrada
+	TweenService:Create(root, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = targetSize, Position = targetPos, BackgroundTransparency = targetBg}):Play()
+	
+	task.delay(0.03, function()
+		setHostShadowVisible(root, true)
+	end)
+end
+
+local function elegantHide(root, onDone)
+	if not root then if onDone then onDone() end return end
+	local currentSize = root.Size
+	local currentPos = root.Position
+	local shrinkSize = UDim2.new(currentSize.X.Scale * 0.965, math.floor(currentSize.X.Offset * 0.965), currentSize.Y.Scale * 0.965, math.floor(currentSize.Y.Offset * 0.965))
+	local liftPos = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, currentPos.Y.Scale, currentPos.Y.Offset + 4)
+	for _, obj in ipairs(root:GetDescendants()) do
+		if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			local goal = {}
+			if obj:IsA("Frame") or obj:IsA("TextButton") then goal.BackgroundTransparency = 1 end
+			if obj:IsA("TextButton") or obj:IsA("TextLabel") then goal.TextTransparency = 1 end
+			TweenService:Create(obj, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In), goal):Play()
+		elseif obj:IsA("UIStroke") then
+			TweenService:Create(obj, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Transparency = 1}):Play()
+		end
+	end
+	setHostShadowVisible(root, false)
+	local tween = TweenService:Create(root, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = shrinkSize, Position = liftPos, BackgroundTransparency = 1})
+	tween:Play()
+	tween.Completed:Connect(function()
+		root.Visible = false
+		root.Size = currentSize
+		root.Position = currentPos
+		if onDone then onDone() end
+	end)
+end
+
+-- ==========================================
+-- SISTEMA DE NOTIFICAÇÃO
+-- ==========================================
+local activeNoticeId = 0
+local function showNotice(text)
+	if not Notice or not NoticeStroke or not NoticeBar then return end
+	activeNoticeId = activeNoticeId + 1
+	local myId = activeNoticeId
+	local msg = tostring(text or "")
+	local noticeWidth = math.clamp(210 + (#msg * 4), 230, 460)
+
+	Notice.Size = UDim2.new(0, noticeWidth, 0, 30)
+	Notice.Text = msg
+	Notice.Visible = true
+	Notice.Position = UDim2.new(1, noticeWidth + 20, 0, 14)
+	Notice.BackgroundTransparency = 1
+	Notice.TextTransparency = 1
+	NoticeStroke.Transparency = 1
+	NoticeBar.BackgroundTransparency = 0
+	NoticeBar.Size = UDim2.new(1, -12, 0, 2)
+	NoticeBar.Position = UDim2.new(0, 6, 1, -4)
+
+	TweenService:Create(Notice, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {BackgroundTransparency = 0.08, TextTransparency = 0, Position = UDim2.new(1, -14, 0, 14)}):Play()
+	TweenService:Create(NoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0.9}):Play()
+	TweenService:Create(NoticeBar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 2), Position = UDim2.new(1, -6, 1, -4)}):Play()
+
+	task.delay(2, function()
+		if myId ~= activeNoticeId then return end
+		TweenService:Create(Notice, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {BackgroundTransparency = 1, TextTransparency = 1, Position = UDim2.new(1, noticeWidth + 20, 0, 14)}):Play()
+		TweenService:Create(NoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Transparency = 1}):Play()
+		TweenService:Create(NoticeBar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
+		task.delay(0.25, function() if myId == activeNoticeId then Notice.Visible = false end end)
+	end)
+end
+
+-- ==========================================
+-- EVENTOS DE TOUCH / COMPONENTES DA GUI
+-- ==========================================
+local function canUseMobileTap(obj)
+	local lastDragTime = obj:GetAttribute("LastDragTime")
+	if typeof(lastDragTime) == "number" then return (tick() - lastDragTime) > 0.12 end
+	return true
+end
+
+local function bindRowPress(button, callback)
+	local activeInput, startPos = nil, nil
+	local moved, lastTap = false, 0
+	button.Active = true
+	button.Selectable = false
+	button.AutoButtonColor = false
+	local function fire()
+		local now = tick()
+		if now - lastTap < 0.08 then return end
+		lastTap = now
+		callback()
+	end
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			activeInput = input
+			startPos = input.Position
+			moved = false
+		end
+	end)
+	button.InputChanged:Connect(function(input)
+		if input == activeInput and startPos then
+			if (input.Position - startPos).Magnitude > 8 then moved = true end
+		end
+	end)
+	button.InputEnded:Connect(function(input)
+		if input == activeInput then
+			local wasMoved = moved
+			activeInput, startPos, moved = nil, nil, false
+			if not wasMoved and canUseMobileTap(button) then fire() end
+		end
+	end)
+	if button:IsA("GuiButton") then
+		button.Activated:Connect(function() if canUseMobileTap(button) then fire() end end)
+	end
+end
+
+local function updateSwitchVisual(switchFrame, knob, enabled)
+	if not switchFrame or not knob then return end
+	local offPos = UDim2.new(0, 3, 0.5, -13)
+	local onPos = UDim2.new(1, -29, 0.5, -13)
+	TweenService:Create(switchFrame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = enabled and Color3.fromRGB(190,190,190) or Color3.fromRGB(20,20,24)}):Play()
+	TweenService:Create(knob, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = enabled and onPos or offPos, BackgroundColor3 = enabled and Color3.fromRGB(255,255,255) or Color3.fromRGB(0,0,0)}):Play()
+end
+
+local function createSwitchRow(parent, yOffset, labelText)
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(1, -14, 0, 40)
+	row.Position = UDim2.new(0, 7, 0, yOffset)
+	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	row.AutoButtonColor = false
+	row.Text = ""
+	row.BorderSizePixel = 0
+	row.Parent = parent
+	row.ZIndex = 5
+	row.Active = true
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	setTargetTransparency(row, 0, 1)
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(0, 130, 1, 0)
+	label.Position = UDim2.new(0, 12, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 15
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = row
+	label.ZIndex = 6
+	noTextStroke(label)
+	setTargetTransparency(label, 1, 0)
+
+	local switch = Instance.new("Frame")
+	switch.Size = UDim2.new(0, 54, 0, 28)
+	switch.Position = UDim2.new(1, -94, 0.5, -14)
+	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
+	switch.BorderSizePixel = 0
+	switch.Parent = row
+	switch.ZIndex = 6
+	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 26, 0, 26)
+	knob.Position = UDim2.new(0, 3, 0.5, -13)
+	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	knob.BorderSizePixel = 0
+	knob.Parent = switch
+	knob.ZIndex = 7
+	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+	local switchHitbox = Instance.new("TextButton")
+	switchHitbox.Name = "SwitchHitbox"
+	switchHitbox.Size = UDim2.new(0, 68, 0, 38)
+	switchHitbox.Position = UDim2.new(1, -101, 0.5, -19)
+	switchHitbox.BackgroundTransparency = 1
+	switchHitbox.Text = ""
+	switchHitbox.AutoButtonColor = false
+	switchHitbox.BorderSizePixel = 0
+	switchHitbox.ZIndex = 20
+	switchHitbox.Parent = row
+	switchHitbox.Active = true
+	return row, switch, knob
+end
+
+local function createSimpleRow(parent, yOffset, labelText)
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(1, -14, 0, 40)
+	row.Position = UDim2.new(0, 7, 0, yOffset)
+	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	row.AutoButtonColor = false
+	row.Text = ""
+	row.BorderSizePixel = 0
+	row.Parent = parent
+	row.ZIndex = 5
+	row.Active = true
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	setTargetTransparency(row, 0, 1)
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(1, -24, 1, 0)
+	label.Position = UDim2.new(0, 12, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.Parent = row
+	label.ZIndex = 6
+	noTextStroke(label)
+	setTargetTransparency(label, 1, 0)
+	return row
+end
+
+local function updateToggleButton()
+	if MobileButton then
+		MobileButton.Text = afkFishEnabled and "AFKFish On" or "AFKFish Off"
+	end
+	if ToggleButton then
+		ToggleButton.Text = afkFishEnabled and "AFKFish On" or "AFKFish Off"
+	end
+end
+
+local function switchMobileTab(name)
+	local mobileIsFunctions = name == "Functions"
+	local mobileIsFlicks = name == "Flicks"
+	local mobileIsSettings = name == "Settings"
+
+	MobileFunctionsPage.Visible = mobileIsFunctions
+	MobileFlicksPage.Visible = mobileIsFlicks
+	MobileSettingsPage.Visible = mobileIsSettings
+
+	MobileTabFunctions.BackgroundColor3 = mobileIsFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabFlicks.BackgroundColor3 = mobileIsFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabSettings.BackgroundColor3 = mobileIsSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+end
+
+local function createSettingsLabel(parent, y, textValue)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -76, 0, 24)
+	label.Position = UDim2.new(0, 12, 0, y)
+	label.BackgroundTransparency = 1
+	label.Text = textValue
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.ZIndex = 30
+	label.Parent = parent
+	noTextStroke(label)
+	return label
+end
+
+local function applySettingsAfkTime(box)
+	local raw = box.Text:match("%d+")
+	if raw then
+		afkFishTime = math.clamp(tonumber(raw), 1, 60)
+		showNotice("Tempo do AFKFish alterado para " .. afkFishTime .. "m.")
+	else
+		showNotice("Tempo inválido. Mín: 1, Max: 60.")
+	end
+	box.Text = tostring(afkFishTime) .. "m"
+	saveUserPreferences()
+end
+
+local function applySettingsAfkPos(box)
+	local x, y, z = box.Text:match("([^,]+),([^,]+),([^,]+)")
+	if x and y and z then
+		afkFishPositionStr = string.format("%d, %d, %d", tonumber(x), tonumber(y), tonumber(z))
+		afkFishDestino = CFrame.new(tonumber(x), tonumber(y), tonumber(z))
+		showNotice("Posição do AFKFish atualizada: " .. afkFishPositionStr)
+	else
+		showNotice("Coordenadas inválidas. Use X, Y, Z.")
+	end
+	box.Text = afkFishPositionStr
+	saveUserPreferences()
+end
+
+local function teleportTo(cframeTarget)
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local root = char:WaitForChild("HumanoidRootPart")
+	root.CFrame = cframeTarget
+end
+
+-- ==========================================
+-- BOTÃO DE ANIMAÇÃO / CLIQUE (Para aba TPs)
+-- ==========================================
+local function addPressAnimation(button, callback)
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			TweenService:Create(button, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(40,40,40)}):Play()
+		end
+	end)
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			TweenService:Create(button, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(0,0,0)}):Play()
+		end
+	end)
+	bindRowPress(button, callback)
+end
+local function buildMobileGui()
+	loadUserPreferences()
+
+	ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = "AutoWallHopGuiMobile"
+	ScreenGui.ResetOnSpawn = false
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	ScreenGui.Parent = PlayerGui
+
+	-- Criação de Notice no MobileGui (Global)
+	Notice = Instance.new("TextLabel")
+	Notice.Size = UDim2.new(0, 230, 0, 30)
+	Notice.Position = UDim2.new(1, -14, 0, 14)
+	Notice.AnchorPoint = Vector2.new(1, 0)
+	Notice.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	Notice.BackgroundTransparency = 1
+	Notice.TextColor3 = Color3.fromRGB(255,255,255)
+	Notice.TextTransparency = 1
+	Notice.Font = Enum.Font.GothamBold
+	Notice.TextSize = 11
+	Notice.TextXAlignment = Enum.TextXAlignment.Left
+	Notice.ZIndex = 90
+	Notice.Visible = false
+	Notice.Parent = ScreenGui
+	Instance.new("UICorner", Notice).CornerRadius = UDim.new(0, 10)
+	
+	local noticePadding = Instance.new("UIPadding")
+	noticePadding.PaddingLeft = UDim.new(0, 8)
+	noticePadding.PaddingRight = UDim.new(0, 8)
+	noticePadding.Parent = Notice
+	
+	NoticeBar = Instance.new("Frame")
+	NoticeBar.Size = UDim2.new(1, -12, 0, 2)
+	NoticeBar.Position = UDim2.new(0, 6, 1, -4)
+	NoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	NoticeBar.BackgroundTransparency = 0
+	NoticeBar.BorderSizePixel = 0
+	NoticeBar.ZIndex = 91
+	NoticeBar.Parent = Notice
+	Instance.new("UICorner", NoticeBar).CornerRadius = UDim.new(1, 0)
+
+	NoticeStroke = Instance.new("UIStroke")
+	NoticeStroke.Color = Color3.fromRGB(255,255,255)
+	NoticeStroke.Transparency = 1
+	NoticeStroke.Parent = Notice
+
+	-- BOTÃO MÓVEL AFKFISH
+	MobileButton = Instance.new("TextButton")
+	MobileButton.Size = UDim2.new(0, 140, 0, 50)
+	MobileButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileButton.Text = "AFKFish Off"
+	MobileButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileButton.Font = Enum.Font.GothamBold
+	MobileButton.TextScaled = true
+	MobileButton.Parent = ScreenGui
+	MobileButton:SetAttribute("LastDragTime", 0)
+	MobileButton:SetAttribute("CustomMoved", false)
+	Instance.new("UICorner", MobileButton).CornerRadius = UDim.new(0, 12)
+	noTextStroke(MobileButton)
+	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
+
+	local inset = GuiService:GetGuiInset()
+	MobileMenuButton = Instance.new("TextButton")
+	MobileMenuButton.Size = UDim2.new(0, 54, 0, 54)
+	MobileMenuButton.Position = UDim2.new(0, 86, 0, inset.Y - 60)
+	MobileMenuButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileMenuButton.Text = "≡"
+	MobileMenuButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileMenuButton.Font = Enum.Font.GothamBold
+	MobileMenuButton.TextSize = 22
+	MobileMenuButton.Parent = ScreenGui
+	Instance.new("UICorner", MobileMenuButton).CornerRadius = UDim.new(1, 0)
+	noTextStroke(MobileMenuButton)
+	addTrueRoundedShadow(MobileMenuButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
+
+	MobilePanel = Instance.new("Frame")
+	MobilePanel.Size = UDim2.new(0, 232, 0, 324)
+	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobilePanel.BorderSizePixel = 0
+	MobilePanel.Visible = false
+	MobilePanel.Parent = ScreenGui
+	Instance.new("UICorner", MobilePanel).CornerRadius = UDim.new(0, 14)
+	addTrueRoundedShadow(MobilePanel, 14, 1.15, Color3.fromRGB(0, 0, 0))
+
+	local mobileDragHandle = Instance.new("Frame")
+	mobileDragHandle.Size = UDim2.new(1, -16, 0, 14)
+	mobileDragHandle.Position = UDim2.new(0, 7, 0, 5)
+	mobileDragHandle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	mobileDragHandle.Parent = MobilePanel
+	mobileDragHandle.Active = true
+	Instance.new("UICorner", mobileDragHandle).CornerRadius = UDim.new(1, 0)
+
+	MobileTabFunctions = Instance.new("TextButton", MobilePanel)
+	MobileTabFunctions.Size = UDim2.new(0, 62, 0, 26)
+	MobileTabFunctions.Position = UDim2.new(0, 8, 0, 24)
+	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	MobileTabFunctions.Text = "Functions"
+	MobileTabFunctions.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileTabFunctions.Font = Enum.Font.GothamBold; MobileTabFunctions.TextSize = 11
+	Instance.new("UICorner", MobileTabFunctions).CornerRadius = UDim.new(0, 10)
+
+	MobileTabFlicks = Instance.new("TextButton", MobilePanel)
+	MobileTabFlicks.Size = UDim2.new(0, 62, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 84, 0, 24)
+	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
+	MobileTabFlicks.Text = "Tps" -- MUDADO
+	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileTabFlicks.Font = Enum.Font.GothamBold; MobileTabFlicks.TextSize = 11
+	Instance.new("UICorner", MobileTabFlicks).CornerRadius = UDim.new(0, 10)
+
+	MobileTabSettings = Instance.new("TextButton", MobilePanel)
+	MobileTabSettings.Size = UDim2.new(0, 66, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 160, 0, 24)
+	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
+	MobileTabSettings.Text = "Settings"
+	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileTabSettings.Font = Enum.Font.GothamBold; MobileTabSettings.TextSize = 11
+	Instance.new("UICorner", MobileTabSettings).CornerRadius = UDim.new(0, 10)
+
+	-- =====================================
+	-- PÁGINA: FUNCTIONS
+	-- =====================================
+	MobileFunctionsPage = Instance.new("ScrollingFrame", MobilePanel)
+	MobileFunctionsPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileFunctionsPage.Position = UDim2.new(0, 0, 0, 58)
+	MobileFunctionsPage.BackgroundTransparency = 1; MobileFunctionsPage.BorderSizePixel = 0
+	MobileFunctionsPage.ScrollBarThickness = 3; MobileFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 200)
+
+	local titleFuncs = Instance.new("TextLabel", MobileFunctionsPage)
+	titleFuncs.Size = UDim2.new(1, -14, 0, 22); titleFuncs.Position = UDim2.new(0, 7, 0, 4)
+	titleFuncs.BackgroundTransparency = 1; titleFuncs.Text = "All Functions"
+	titleFuncs.TextColor3 = Color3.fromRGB(255,255,255); titleFuncs.Font = Enum.Font.GothamBold
+	titleFuncs.TextSize = 13; titleFuncs.TextXAlignment = Enum.TextXAlignment.Left
+
+	local rowMeg, swMeg, knMeg = createSwitchRow(MobileFunctionsPage, 30, "Auto MEG")
+	local rowKoi, swKoi, knKoi = createSwitchRow(MobileFunctionsPage, 72, "Auto KOI")
+	local rowMmt, swMmt, knMmt = createSwitchRow(MobileFunctionsPage, 114, "Auto MMT")
+
+	mobileAutoMegSwitch, mobileAutoMegKnob = swMeg, knMeg
+	mobileAutoKoiSwitch, mobileAutoKoiKnob = swKoi, knKoi
+	mobileAutoMmtSwitch, mobileAutoMmtKnob = swMmt, knMmt
+
+	bindRowPress(rowMeg:FindFirstChild("SwitchHitbox"), function()
+		autoMegEnabled = not autoMegEnabled
+		updateSwitchVisual(mobileAutoMegSwitch, mobileAutoMegKnob, autoMegEnabled)
+		saveUserPreferences()
+	end)
+	bindRowPress(rowKoi:FindFirstChild("SwitchHitbox"), function()
+		autoKoiEnabled = not autoKoiEnabled
+		updateSwitchVisual(mobileAutoKoiSwitch, mobileAutoKoiKnob, autoKoiEnabled)
+		saveUserPreferences()
+	end)
+	bindRowPress(rowMmt:FindFirstChild("SwitchHitbox"), function()
+		autoMmtEnabled = not autoMmtEnabled
+		updateSwitchVisual(mobileAutoMmtSwitch, mobileAutoMmtKnob, autoMmtEnabled)
+		saveUserPreferences()
+	end)
+
+	-- =====================================
+	-- PÁGINA: TPS (ANTIGA FLICKS)
+	-- =====================================
+	MobileFlicksPage = Instance.new("ScrollingFrame", MobilePanel)
+	MobileFlicksPage.Size = UDim2.new(1, 0, 1, -58); MobileFlicksPage.Position = UDim2.new(0, 0, 0, 58)
+	MobileFlicksPage.BackgroundTransparency = 1; MobileFlicksPage.BorderSizePixel = 0
+	MobileFlicksPage.ScrollBarThickness = 3; MobileFlicksPage.Visible = false
+	MobileFlicksPage.CanvasSize = UDim2.new(0, 0, 0, 320)
+
+	local titleTps = Instance.new("TextLabel", MobileFlicksPage)
+	titleTps.Size = UDim2.new(1, -14, 0, 22); titleTps.Position = UDim2.new(0, 7, 0, 4)
+	titleTps.BackgroundTransparency = 1; titleTps.Text = "Teleports" -- MUDADO
+	titleTps.TextColor3 = Color3.fromRGB(255,255,255); titleTps.Font = Enum.Font.GothamBold
+	titleTps.TextSize = 13; titleTps.TextXAlignment = Enum.TextXAlignment.Left
+
+	local rowTpMeg = createSimpleRow(MobileFlicksPage, 30, "MEG")
+	local rowTpKoi = createSimpleRow(MobileFlicksPage, 72, "KOI")
+	local rowTpMmt = createSimpleRow(MobileFlicksPage, 114, "MMT")
+	local rowTpPos = createSimpleRow(MobileFlicksPage, 156, "POS")
+
+	addPressAnimation(rowTpMeg, function() teleportTo(CFrame.new(-19, -1, 160)) end)
+	addPressAnimation(rowTpKoi, function() teleportTo(CFrame.new(-107, 10, -1322)) end)
+	addPressAnimation(rowTpMmt, function() teleportTo(CFrame.new(-17, 0, -752)) end)
+	addPressAnimation(rowTpPos, function()
+		local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local pos = hrp.Position
+			local posStr = string.format("%d, %d, %d", math.floor(pos.X), math.floor(pos.Y), math.floor(pos.Z))
+			if setclipboard then
+				setclipboard(posStr)
+				showNotice("Posição copiada: " .. posStr)
+			else
+				showNotice("Seu executor não suporta setclipboard.")
+			end
+		end
+	end)
+
+	local titleServerHop = Instance.new("TextLabel", MobileFlicksPage)
+	titleServerHop.Size = UDim2.new(1, -14, 0, 22); titleServerHop.Position = UDim2.new(0, 7, 0, 202)
+	titleServerHop.BackgroundTransparency = 1; titleServerHop.Text = "Server Hop" -- MUDADO
+	titleServerHop.TextColor3 = Color3.fromRGB(255,255,255); titleServerHop.Font = Enum.Font.GothamBold
+	titleServerHop.TextSize = 13; titleServerHop.TextXAlignment = Enum.TextXAlignment.Left
+
+	local row4xLuck = createSimpleRow(MobileFlicksPage, 228, "4x Luck")
+	addPressAnimation(row4xLuck, function() showNotice("4x Luck em breve...") end)
+
+
+	-- =====================================
+	-- PÁGINA: SETTINGS
+	-- =====================================
+	MobileSettingsPage = Instance.new("ScrollingFrame", MobilePanel)
+	MobileSettingsPage.Size = UDim2.new(1, 0, 1, -58); MobileSettingsPage.Position = UDim2.new(0, 0, 0, 58)
+	MobileSettingsPage.BackgroundTransparency = 1; MobileSettingsPage.BorderSizePixel = 0
+	MobileSettingsPage.ScrollBarThickness = 3; MobileSettingsPage.Visible = false
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 150)
+
+	local titleSettings = Instance.new("TextLabel", MobileSettingsPage)
+	titleSettings.Size = UDim2.new(1, -14, 0, 22); titleSettings.Position = UDim2.new(0, 7, 0, 4)
+	titleSettings.BackgroundTransparency = 1; titleSettings.Text = "Minimal Settings"
+	titleSettings.TextColor3 = Color3.fromRGB(255,255,255); titleSettings.Font = Enum.Font.GothamBold
+	titleSettings.TextSize = 13; titleSettings.TextXAlignment = Enum.TextXAlignment.Left
+
+	createSettingsLabel(MobileSettingsPage, 32, "AFK-Fish Time")
+	SettingsAfkTimeBox = Instance.new("TextBox", MobileSettingsPage)
+	SettingsAfkTimeBox.Size = UDim2.new(0, 58, 0, 28); SettingsAfkTimeBox.Position = UDim2.new(1, -65, 0, 30)
+	SettingsAfkTimeBox.BackgroundColor3 = Color3.fromRGB(0,0,0); SettingsAfkTimeBox.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsAfkTimeBox.Font = Enum.Font.GothamBold; SettingsAfkTimeBox.TextSize = 12
+	SettingsAfkTimeBox.Text = tostring(afkFishTime) .. "m"
+	Instance.new("UICorner", SettingsAfkTimeBox).CornerRadius = UDim.new(0, 8)
+	local strokeTime = Instance.new("UIStroke", SettingsAfkTimeBox)
+	strokeTime.Color = Color3.fromRGB(35,35,35); strokeTime.Thickness = 1; strokeTime.Transparency = 0.08
+	SettingsAfkTimeBox.FocusLost:Connect(function() applySettingsAfkTime(SettingsAfkTimeBox) end)
+
+	createSettingsLabel(MobileSettingsPage, 68, "AFK-Fish Position")
+	SettingsAfkPosBox = Instance.new("TextBox", MobileSettingsPage)
+	SettingsAfkPosBox.Size = UDim2.new(0, 58, 0, 28); SettingsAfkPosBox.Position = UDim2.new(1, -65, 0, 66)
+	SettingsAfkPosBox.BackgroundColor3 = Color3.fromRGB(0,0,0); SettingsAfkPosBox.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsAfkPosBox.Font = Enum.Font.GothamBold; SettingsAfkPosBox.TextSize = 12
+	SettingsAfkPosBox.Text = ""; SettingsAfkPosBox.PlaceholderText = ""; SettingsAfkPosBox.ClearTextOnFocus = false
+	Instance.new("UICorner", SettingsAfkPosBox).CornerRadius = UDim.new(0, 8)
+	local strokePos = Instance.new("UIStroke", SettingsAfkPosBox)
+	strokePos.Color = Color3.fromRGB(35,35,35); strokePos.Thickness = 1; strokePos.Transparency = 0.08
+	SettingsAfkPosBox.Focused:Connect(function() SettingsAfkPosBox.Text = afkFishPositionStr end)
+	SettingsAfkPosBox.FocusLost:Connect(function() applySettingsAfkPos(SettingsAfkPosBox); SettingsAfkPosBox.Text = "" end)
+
+
+	-- DRAG E MOVIMENTAÇÃO (Botão tem Hold de 1.5s igual original)
+	local function bindFreeDrag(handle, target, holdTime)
+		local activeInput, dragStart, startPos = nil, nil, nil
+		local holdSatisfied, holdCanceled, holdId = false, false, 0
+		holdTime = holdTime or 0
+
+		handle.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+				activeInput = input; dragStart = input.Position; startPos = target.Position
+				holdSatisfied = false; holdCanceled = false; holdId = holdId + 1
+				local myHoldId = holdId
+				if holdTime <= 0 then holdSatisfied = true else
+					task.delay(holdTime, function()
+						if activeInput == input and not holdCanceled and holdId == myHoldId then
+							holdSatisfied = true
+							handle:SetAttribute("LastDragTime", tick())
+						end
+					end)
+				end
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if input == activeInput and dragStart and startPos then
+				local delta = input.Position - dragStart
+				if not holdSatisfied then
+					if delta.Magnitude >= 8 then holdCanceled = true end
+					return
+				end
+				if delta.Magnitude >= 6 then handle:SetAttribute("LastDragTime", tick()) end
+				target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if input == activeInput then
+				activeInput, dragStart, startPos = nil, nil, nil
+				holdSatisfied, holdCanceled = false, false
+				holdId = holdId + 1
+			end
+		end)
+	end
+
+	-- Posições Defaults Mobile
+	local function placeMobileButtonDefault()
+		local insetNow = GuiService:GetGuiInset()
+		if not MobileButton:GetAttribute("CustomMoved") then
+			MobileButton.Position = UDim2.new(0, 150, 0, insetNow.Y - 58)
+		end
+	end
+	local function placePanelToRightOfWallhop()
+		local xOffset = MobileButton.Position.X.Offset + MobileButton.Size.X.Offset + 28
+		local yOffset = MobileButton.Position.Y.Offset + 6
+		MobilePanel.Position = UDim2.new(0, xOffset, 0, yOffset)
+	end
+
+	placeMobileButtonDefault()
+	placePanelToRightOfWallhop()
+
+	bindFreeDrag(MobileButton, MobileButton, 1.5)
+	bindFreeDrag(MobileMenuButton, MobileMenuButton, 0)
+	bindFreeDrag(mobileDragHandle, MobilePanel, 0)
+
+	MobileButton.Activated:Connect(function()
+		if not canUseMobileTap(MobileButton) then return end
+		afkFishEnabled = not afkFishEnabled
+		updateToggleButton()
+		saveUserPreferences()
+		showNotice(afkFishEnabled and "AFKFish Iniciado" or "AFKFish Parado")
+	end)
+
+	MobileMenuButton.Activated:Connect(function()
+		if not canUseMobileTap(MobileMenuButton) then return end
+		mobileMenuOpen = not mobileMenuOpen
+		if mobileMenuOpen then
+			if not MobilePanel:GetAttribute("CustomMoved") then placePanelToRightOfWallhop() end
+			MobilePanel.BackgroundTransparency = 1
+			MobilePanel.Size = UDim2.new(0, 224, 0, 316)
+			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 324), MobilePanel.Position, 0)
+		else
+			elegantHide(MobilePanel)
+		end
+	end)
+
+	MobileTabFunctions.Activated:Connect(function() switchMobileTab("Functions") end)
+	MobileTabFlicks.Activated:Connect(function() switchMobileTab("Flicks") end)
+	MobileTabSettings.Activated:Connect(function() switchMobileTab("Settings") end)
+
+	updateSwitchVisual(mobileAutoMegSwitch, mobileAutoMegKnob, autoMegEnabled)
+	updateSwitchVisual(mobileAutoKoiSwitch, mobileAutoKoiKnob, autoKoiEnabled)
+	updateSwitchVisual(mobileAutoMmtSwitch, mobileAutoMmtKnob, autoMmtEnabled)
+end
+
+buildMobileGui()
+switchMobileTab("Functions")
+
+
+-- ==========================================
+-- LÓGICA DO AFK FISH (LOOP)
+-- ==========================================
+local function clicar(x, y)
+	VIM:SendMouseMoveEvent(x, y, game)
+	task.wait(0.1)
+	VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+	task.wait(0.05)
+	VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+-- Posições fixas de clique (AFKFish)
+local ABRIR_X, ABRIR_Y = 105, 190
+local FECHAR_X, FECHAR_Y = 720, 74
+local RESTAURANTE_X, RESTAURANTE_Y = 560, 33
+
+task.spawn(function()
+	while task.wait(1) do
+		if afkFishEnabled then
+			-- Executa cliques
+			clicar(ABRIR_X, ABRIR_Y)
+			task.wait(5)
+			clicar(FECHAR_X, FECHAR_Y)
+			task.wait(0.5)
+			clicar(RESTAURANTE_X, RESTAURANTE_Y)
+			task.wait(2)
+			
+			-- Teleporta para o destino salvo (se as funções Auto Evento não estiverem ativas para sobrepor isso no futuro)
+			teleportTo(afkFishDestino)
+			
+			-- Loop de espera baseado no tempo setado em 'afkFishTime' (minutos)
+			-- Fazemos um mini loop para conseguir cancelar caso você desligue no meio da espera
+			local targetEspera = afkFishTime * 60
+			local tempoEsperado = 0
+			
+			while tempoEsperado < targetEspera and afkFishEnabled do
+				task.wait(1)
+				tempoEsperado = tempoEsperado + 1
+			end
+		end
+	end
+end)
+
+
+task.spawn(function()
+    local running=false
+    while task.wait(0.5) do
+        if autoMegEnabled and not running then
+            local gui=LocalPlayer.PlayerGui:FindFirstChild("RandomEventBannerScreen")
+            local h=gui and gui:FindFirstChild("Container") and gui.Container:FindFirstChild("Header")
+            if h and string.find(string.upper(h.Text),"MEG",1,true) then
+                running=true
+                afkFishEnabled=false
+                updateToggleButton()
+                teleportTo(CFrame.new(-1454,-1,1503))
+                task.wait(600)
+                teleportTo(afkFishDestino)
+                afkFishEnabled=true
+                updateToggleButton()
+                running=false
+            end
+        end
+    end
+end)
+
+
+print("Cerber - AFKFish Edition Loaded ✅")
+
+
+-- AUTO MEG PATCH ADDED
