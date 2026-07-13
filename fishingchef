@@ -849,7 +849,7 @@ end
 
 -- Posições fixas de clique (AFKFish)
 local ABRIR_X, ABRIR_Y = 105, 190
-local FECHAR_X, FECHAR_Y = 720, 74
+local FECHAR_X, FECHAR_Y = 716, 74
 local RESTAURANTE_X, RESTAURANTE_Y = 560, 33
 
 task.spawn(function()
